@@ -65,8 +65,11 @@ note: ones-place seconds are designed to collide/match
 /// 3. not 0 or 4
 /// 4. is prime
 ///
-/// ## One Collision
-/// Only 5,7 values collide, but it is something.
+/// ## One Collision Case
+/// The "5" value and "7" value from the compressed 10th-digit(31 year scale) collide, but at least most information from the 10th-digit could be expressed. 
+/// - The largest u32 number is: 16,777,216
+/// - The largest u64 number is: 4,294,967,296 (Feb 7, year:2106)
+/// - With the exception of 5 vs 7 in the last place, this system can mostly reflect posix time up to 9,999,999,999, (or Saturday, November 20, year:2286 5:46:39 PM) which is more than u64 can.
 ///
 /// ### Without Bit Manipulation
 /// This works without bitwise operations (fun though those are).
@@ -74,8 +77,11 @@ note: ones-place seconds are designed to collide/match
 /// each of which can hold (in decimal terms)
 /// up to 0-255
 /// including 199
-///
 /// The hundres's place can safely be 1 or 0 (though it can be 2 also if we know the whole value is less than 255).
+///
+/// ## future research
+/// For specified time ranges a smaller system should be possible.
+/// e.g. if only months and not minutes are needed
 fn generate_terse_timestamp_freshness_proxy_v4(posix_timestamp: u64) -> [u8; 4] {
 
     // 1. Extract relevant digits
