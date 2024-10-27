@@ -52,7 +52,7 @@ note: ones-place seconds are designed to collide/match
 /// byte 3:
 /// - digit 6 		(in the ones place)
 /// - digit 7 		(in the tens place)
-/// - fragment-3	(in the hundreds' place), not 0 or 4
+/// - fragment-3	(in the hundreds' place), not 0, 5 or 8
 ///
 /// byte 4:
 /// - digit 8 		(in the ones place)
@@ -62,14 +62,14 @@ note: ones-place seconds are designed to collide/match
 /// 10th digit fragments:
 /// 1. not mod !%2
 /// 2. not mod !%3
-/// 3. not 0 or 4
+/// 3. not 0, 5 or 8
 /// 4. is prime
 ///
-/// ## One Collision Case
-/// The "5" value and "7" value from the compressed 10th-digit(31 year scale) collide, but at least most information from the 10th-digit could be expressed. 
+/// ## Zero known collisions within 10-sec to 31-year range
+/// Fragment rules seem to entirely cover the 0-9 range.
 /// - The largest u32 number is: 16,777,216
 /// - The largest u64 number is: 4,294,967,296 (Feb 7, year:2106)
-/// - With the exception of 5 vs 7 in the last place, this system can mostly reflect posix time up to 9,999,999,999, (or Saturday, November 20, year:2286 5:46:39 PM) which is more than u64 can.
+/// - This system can mostly reflect posix time up to 9,999,999,999, (or Saturday, November 20, year:2286 5:46:39 PM) which is more than u64 can (excluding 0-9 ones-seconds).
 ///
 /// ### Without Bit Manipulation
 /// This works without bitwise operations (fun though those are).
@@ -79,9 +79,6 @@ note: ones-place seconds are designed to collide/match
 /// including 199
 /// The hundres's place can safely be 1 or 0 (though it can be 2 also if we know the whole value is less than 255).
 ///
-/// ## future research
-/// For specified time ranges a smaller system should be possible.
-/// e.g. if only months and not minutes are needed
 fn generate_terse_timestamp_freshness_proxy_v4(posix_timestamp: u64) -> [u8; 4] {
 
     // 1. Extract relevant digits
@@ -98,7 +95,7 @@ fn generate_terse_timestamp_freshness_proxy_v4(posix_timestamp: u64) -> [u8; 4] 
     // 2. Determine 10th digit fragments
     let fragment_1 = (digit_10 % 2 != 0) as u8;
     let fragment_2 = (digit_10 % 3 != 0) as u8;
-    let fragment_3 = (digit_10 != 0 && digit_10 != 4) as u8;
+    let fragment_3 = (digit_10 != 0 && digit_10 != 5 && digit_10 != 8) as u8;
     let fragment_4 = (is_prime(digit_10)) as u8;
 
     // 3. Pack into u8 array (4 bytes, fragment in hundreds place)
@@ -137,7 +134,7 @@ fn main() {
 
     // 2. Iterate through future timestamps
     let start_time = Utc::now();
-    let years_to_check = 1; // Check for collisions over the next 1 year
+    let years_to_check = 10; // Check for collisions over the next 1 year
     let end_time = start_time + Duration::days(365 * years_to_check);
 
     let mut iteration_time = start_time + Duration::seconds(1); // Start from the next second
