@@ -78,6 +78,8 @@ including 199
 The hundres's place can safely be 1 or 0 (though it can be 2 also if we know the whole value is less than 255).
 
 from python:
+
+```python
 def is_prime(n):
    prime_numbers = [2, 3, 5, 7]
    if n in prime_numbers:
@@ -97,10 +99,10 @@ def not_0_4(n):
 for i in range(10):
    # print(f"{i} 2:{i%2} 3:{i%3} 4:{i%4}")
    print(f"{i} {not i%2}{not i%3}{not_0_4(i)}{is_prime(i)}")
+```
 
-
-
-
+Output:
+```
 0 TrueTrueFalseFalse
 1 FalseFalseTrueFalse
 2 TrueFalseTrueTrue
@@ -111,5 +113,5 @@ for i in range(10):
 *7 FalseFalseTrueTrue
 8 TrueFalseTrueFalse
 9 FalseTrueTrueFalse
-
+```
 
