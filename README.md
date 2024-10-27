@@ -52,7 +52,7 @@ byte 2:
 byte 3:
 - digit 6 		(in the ones place)
 - digit 7 		(in the tens place)
-- fragment-3	(in the hundreds' place), not 0 or 4
+- fragment-3	(in the hundreds' place), not 0, 5 or 8
 
 byte 4:
 - digit 8 		(in the ones place)
@@ -62,15 +62,14 @@ byte 4:
 10th digit fragments:
 1. not mod !%2
 2. not mod !%3
-3. not 0 or 4
+3. not 0 or 5 or 8
 4. is prime
 
-## One Collision
-The "5" value and "7" value from the compressed 10th-digit(31 year scale) collide, but at least most information from the 10th-digit could be expressed. 
-
+## Zero known collisions within 10-sec to 31-year range
+Fragment rules seem to entirely cover the 0-9 range.
 - The largest u32 number is: 16,777,216
 - The largest u64 number is: 4,294,967,296 (Feb 7, year:2106)
-- With the exception of 5 vs 7 in the last place, this system can mostly reflect posix time up to 9,999,999,999, (or Saturday, November 20, year:2286 5:46:39 PM) which is more than u64 can.
+- This system can mostly reflect posix time up to 9,999,999,999, (or Saturday, November 20, year:2286 5:46:39 PM) which is more than u64 can (excluding 0-9 ones-seconds).
 
 ### Without Bit Manipulation
 This works without bitwise operations (fun though those are).
@@ -81,7 +80,12 @@ including 199
 
 The hundres's place can safely be 1 or 0 (though it can be 2 also if we know the whole value is less than 255).
 
+## future research
+For specified time ranges a smaller system should be possible.
+e.g. if only months and not minutes are needed
+
 from python:
+```python
 def is_prime(n):
    prime_numbers = [2, 3, 5, 7]
    if n in prime_numbers:
@@ -90,8 +94,8 @@ def is_prime(n):
        return False
 
 
-def not_0_4(n):
-   prime_numbers = [0,4]
+def not_0_5(n):
+   prime_numbers = [0,5,8]
    if n not in prime_numbers:
        return True
    else:
@@ -100,114 +104,32 @@ def not_0_4(n):
 
 for i in range(10):
    # print(f"{i} 2:{i%2} 3:{i%3} 4:{i%4}")
-   print(f"{i} {not i%2}{not i%3}{not_0_4(i)}{is_prime(i)}")
+   print(f"{i} {not i%2}{not i%3}{not_0_5(i)}{is_prime(i)}")
+
+
+print("\n")
+
+
+for i in range(10):
+   # print(f"{i} 2:{i%2} 3:{i%3} 4:{i%4}")
+   print(f"{i} {i%2} {i%3} {not_0_5(i)} {is_prime(i)}")
 
 
 
 
+```
+Output:
+```
 0 TrueTrueFalseFalse
 1 FalseFalseTrueFalse
 2 TrueFalseTrueTrue
 3 FalseTrueTrueTrue
-4 TrueFalseFalseFalse
-*5 FalseFalseTrueTrue
+4 TrueFalseTrueFalse
+5 FalseFalseFalseTrue
 6 TrueTrueTrueFalse
-*7 FalseFalseTrueTrue
-8 TrueFalseTrueFalse
+7 FalseFalseTrueTrue
+8 TrueFalseFalseFalse
 9 FalseTrueTrueFalse
-
-
-
-
-
-
-Rust:
-use chrono::{Utc, Duration, TimeZone};
-use std::collections::HashMap;
-
-fn generate_terse_timestamp_freshness_proxy_v4(posix_timestamp: u64) -> [u8; 4] {
-    // 1. Extract relevant digits
-    let digit_2 = ((posix_timestamp / 10) % 10) as u8;
-    let digit_3 = ((posix_timestamp / 100) % 10) as u8;
-    let digit_4 = ((posix_timestamp / 1000) % 10) as u8;
-    let digit_5 = ((posix_timestamp / 10000) % 10) as u8;
-    let digit_6 = ((posix_timestamp / 100000) % 10) as u8;
-    let digit_7 = ((posix_timestamp / 1000000) % 10) as u8;
-    let digit_8 = ((posix_timestamp / 10000000) % 10) as u8;
-    let digit_9 = ((posix_timestamp / 100000000) % 10) as u8;
-    let digit_10 = ((posix_timestamp / 1000000000) % 10) as u8;
-
-    // 2. Determine 10th digit fragments
-    let fragment_1 = (digit_10 % 2 != 0) as u8;
-    let fragment_2 = (digit_10 % 3 != 0) as u8;
-    let fragment_3 = (digit_10 != 0 && digit_10 != 4) as u8;
-    let fragment_4 = (is_prime(digit_10)) as u8;
-
-    // 3. Pack into u8 array (4 bytes, fragment in hundreds place)
-    let packed_timestamp = [
-        (fragment_1 * 100) + (digit_2 * 10) + digit_3, 
-        (fragment_2 * 100) + (digit_4 * 10) + digit_5,
-        (fragment_3 * 100) + (digit_6 * 10) + digit_7,
-        (fragment_4 * 100) + (digit_8 * 10) + digit_9,
-    ];
-
-    packed_timestamp
-}
-
-fn is_prime(n: u8) -> bool {
-    match n {
-        2 | 3 | 5 | 7 => true,
-        _ => false,
-    }
-}
-
-fn main() {
-    // 1. Generate the original freshness proxy
-    let now_timestamp = Utc::now().timestamp() as u64;
-    let original_freshness_proxy = generate_terse_timestamp_freshness_proxy_v4(now_timestamp);
-
-    println!("Original  Timestamp: {} ({})", now_timestamp, Utc.timestamp_opt(now_timestamp as i64, 0).unwrap());
-    println!("Original Freshness Proxy: {:?}", original_freshness_proxy);
-
-    // 2. Iterate through future timestamps
-    let start_time = Utc::now();
-    let years_to_check = 10; // Check for collisions over the next 1 year
-    let end_time = start_time + Duration::days(365 * years_to_check);
-
-    let mut iteration_time = start_time + Duration::seconds(1); // Start from the next second
-    let mut collision_count = 0;
-    let mut collision_timestamps: HashMap<[u8; 4], Vec<u64>> = HashMap::new();
-    
-    
-    
-    while iteration_time <= end_time {
-        let posix_timestamp = iteration_time.timestamp() as u64;
-        let terse_timestamp = generate_terse_timestamp_freshness_proxy_v4(posix_timestamp);
-
-        // 3. Compare against the original freshness proxy
-        if terse_timestamp == original_freshness_proxy {
-            collision_count += 1;
-            collision_timestamps.entry(terse_timestamp).or_insert(Vec::new()).push(posix_timestamp);
-            
-            println!("\nCollision detected!");
-            println!("Original  Timestamp: {} ({})", now_timestamp, Utc.timestamp_opt(now_timestamp as i64, 0).unwrap());
-            println!("Colliding Timestamp: {} ({})", posix_timestamp, iteration_time);
-            println!("Original Freshness Proxy:  {:?}", original_freshness_proxy);
-            println!("Colliding terse_timestamp: {:?}", terse_timestamp);
-        }
-
-        iteration_time = iteration_time + Duration::seconds(1);
-    }
-    
-    // 4. Print collision statistics
-    println!("\nTotal Collisions: {}", collision_count);
-    println!("\nColliding Timestamps:");
-    for (terse_timestamp, timestamps) in collision_timestamps {
-        println!("Terse Timestamp: {:?}", terse_timestamp);
-        println!("  Timestamps: {:?}", timestamps);
-    }
-    print!("\nok!\n\n");
-}
-
+```
 
 
